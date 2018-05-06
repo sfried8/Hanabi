@@ -1,8 +1,31 @@
 import React from "react";
+import HanabiCard from "./HanabiCard";
 
+function cardStyle(card) {
+    if (!card.colorKnown) {
+        return { border: "3px solid black", backgroundColor: "grey" };
+    }
+    switch (card.color) {
+        case "Red":
+            return { border: "3px solid red", backgroundColor: "#FFEEEE" };
+        case "Yellow":
+            return { border: "3px solid yellow", backgroundColor: "#FFFFEE" };
+        case "Green":
+            return { border: "3px solid green", backgroundColor: "#EEFFEE" };
+        case "Blue":
+            return { border: "3px solid blue", backgroundColor: "#EEEEFF" };
+        case "White":
+            return {
+                border: "3px solid white",
+                backgroundColor: "#FFFFFF"
+            };
+        default:
+        return { border: "3px solid black", backgroundColor: "grey" };
+    }
+}
 class HanabiBoard extends React.Component {
     onDiscard(playerId, cardId) {
-        if (this.isActive(playerId)) {
+        if (this.isActive(playerId) &&this.props.G.hintTokens < 8){
             this.props.moves.discardCard(cardId);
             this.props.events.endTurn();
         }
@@ -13,10 +36,22 @@ class HanabiBoard extends React.Component {
             this.props.events.endTurn();
         }
     }
+    onHintColor(hintRecipient, color) {
+        if (this.props.G.hintTokens > 0) {
 
+            this.props.moves.hint(hintRecipient, true, color)
+            this.props.events.endTurn();
+        }
+    }
+    onHintValue(hintRecipient, value) {
+        if (this.props.G.hintTokens > 0) {
+            this.props.moves.hint(hintRecipient, false, value)
+            this.props.events.endTurn();
+        }
+    }
     isActive(id) {
         if (!this.props.isActive) return false;
-        if (id !== +this.props.ctx.currentPlayer) return false;
+        if (+id !== +this.props.ctx.currentPlayer) return false;
         return true;
     }
 
@@ -39,56 +74,14 @@ class HanabiBoard extends React.Component {
         const playerRows = this.props.G.players
             .map((player, playerIndex) =>
                 player.map(
-                    (card, cardIndex) =>
-                        playerIndex === +this.props.ctx.currentPlayer ? (
-                            <div
-                                style={{
-                                    ...cellStyle,
-                                    border: "3px solid black",
-                                    display: "flex",
-                                    justifyContent: "stretch"
-                                }}
-                                key={cardIndex}
-                            >
-                                <button
-                                    style={{ width: "25%" }}
-                                    onClick={() =>
-                                        this.onPlay(playerIndex, cardIndex)
-                                    }
-                                >
-                                    Play
-                                </button>
-                                <button
-                                    style={{ width: "25%" }}
-                                    onClick={() =>
-                                        this.onDiscard(playerIndex, cardIndex)
-                                    }
-                                >
-                                    Discard
-                                </button>
-                                <button
-                                    style={{ width: "25%" }}
-                                    onClick={() => this.props.events.endTurn()}
-                                >
-                                    Pass
-                                </button>
-                                {card.color} {card.value}
-                            </div>
-                        ) : (
-                            <div
-                                style={{
-                                    ...cellStyle,
-                                    border: "3px solid " + card.color
-                                }}
-                                key={cardIndex}
-                                onClick={() =>
-                                    this.onClick(playerIndex, cardIndex)
-                                }
-                            >
-                                {card.color} {card.value}
-                            </div>
-                        )
-                )
+                    (card, cardIndex) => (<HanabiCard key={playerIndex+"-"+cardIndex} playerIndex={playerIndex} 
+                    card={card} cardIndex={cardIndex} currentPlayer={playerIndex === +this.props.ctx.currentPlayer} 
+                    onPlay={this.onPlay.bind(this)} 
+                    onDiscard={this.onDiscard.bind(this)} 
+                    endTurn={this.props.events.endTurn} 
+                    onHintColor={this.onHintColor.bind(this)} 
+                    onHintValue={this.onHintValue.bind(this)}/>))
+                
             )
             .map((playerRow, playerRowIndex) => (
                 <div
@@ -119,7 +112,7 @@ class HanabiBoard extends React.Component {
                     style={{
                         ...cellStyle,
                         width: "80px",
-                        border: "3px solid " + card.color
+                        ...cardStyle(card)
                     }}
                     key={"discard" + cardIndex}
                 >
@@ -143,6 +136,8 @@ class HanabiBoard extends React.Component {
                         </div>
                     ))}
                 </div>
+                Hint Tokens: {this.props.G.hintTokens}
+                <br />
                 Strikes: {this.props.G.strikes}
                 <br />Discard:
                 <div style={{ display: "flex", flexWrap: "wrap" }}>

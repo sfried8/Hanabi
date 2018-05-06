@@ -5,7 +5,6 @@ import Shuffle from "shuffle-array";
 
 const COLORS = ["Red", "Yellow", "Green", "Blue", "White"];
 function score(stacks) {
-    console.log(COLORS.reduce((acc, color) => acc + stacks[color], 0));
     return COLORS.reduce((acc, color) => acc + stacks[color], 0);
 }
 const Hanabi = Game({
@@ -29,23 +28,32 @@ const Hanabi = Game({
             players,
             discardedCards: [],
             strikes: 0,
+            hintTokens: 8,
             stacks: { Red: 0, Yellow: 0, Green: 0, Blue: 0, White: 0 }
         };
     },
 
     moves: {
         discardCard(G, ctx, card) {
-            let deck = [...G.deck];
-            let players = [...G.players]; // don't mutate original state.
-            let discardedCards = [...G.discardedCards];
-            let playersCards = [...players[ctx.currentPlayer]];
-            discardedCards.push(playersCards.splice(card, 1)[0]);
+            if (G.hintTokens < 8) {
+                let deck = [...G.deck];
+                let players = [...G.players]; // don't mutate original state.
+                let discardedCards = [...G.discardedCards];
+                let playersCards = [...players[ctx.currentPlayer]];
+                discardedCards.push(playersCards.splice(card, 1)[0]);
 
-            players[ctx.currentPlayer] = [
-                ...playersCards,
-                deck.splice(0, 1)[0]
-            ];
-            return { ...G, players, discardedCards, deck }; // don't mutate original state.
+                players[ctx.currentPlayer] = [
+                    ...playersCards,
+                    deck.splice(0, 1)[0]
+                ];
+                return {
+                    ...G,
+                    players,
+                    discardedCards,
+                    deck,
+                    hintTokens: G.hintTokens + 1
+                }; // don't mutate original state.
+            }
         },
         playCard(G, ctx, cardIndex) {
             const players = [...G.players];
@@ -56,14 +64,42 @@ const Hanabi = Game({
             const stacks = { ...G.stacks };
             const discardedCards = [...G.discardedCards];
             let strikes = G.strikes;
+            let hintTokens = G.hintTokens;
             if (stacks[playedCard.color] === playedCard.value - 1) {
                 stacks[playedCard.color]++;
+                if (playedCard.value === 5 && hintTokens < 8) {
+                    hintTokens++;
+                }
             } else {
                 discardedCards.push(playedCard);
                 strikes++;
             }
 
-            return { ...G, deck, players, stacks, discardedCards, strikes };
+            return {
+                ...G,
+                deck,
+                players,
+                stacks,
+                discardedCards,
+                strikes,
+                hintTokens
+            };
+        },
+        hint(G, ctx, playerIndex, isColor, hintValue) {
+            if (G.hintTokens > 0) {
+                const players = [...G.players];
+                players[playerIndex] = [...players[playerIndex]].map(card => ({
+                    value: card.value,
+                    color: card.color,
+                    colorKnown:
+                        card.colorKnown ||
+                        (isColor && card.color === hintValue),
+                    valueKnown:
+                        card.valueKnown ||
+                        (!isColor && card.value === hintValue)
+                }));
+                return { ...G, players, hintTokens: G.hintTokens - 1 };
+            }
         }
     },
     flow: {
@@ -79,7 +115,7 @@ const App = Client({
     game: Hanabi,
     numPlayers: 4,
     board: HanabiBoard,
-    debug: false
+    debug: true
 });
 
 export default App;
